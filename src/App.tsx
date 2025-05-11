@@ -29,40 +29,36 @@ function App() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-center gap-4">
-          <Plane className="h-6 w-6 sm:h-8 sm:w-8" />
-          <h1 className="text-xl sm:text-2xl font-bold">Flight Tracker</h1>
-        </div>
+      <header className="border-b px-4 py-3 flex items-center gap-2">
+        <span className="text-2xl">✈️</span>
+        <h1 className="text-xl font-bold tracking-tight">Flight Tracker</h1>
       </header>
-
-      <main className="container mx-auto px-4 py-6 sm:py-8 space-y-6 sm:space-y-8 max-w-7xl">
-        <ApiKeyManager onApiKeyChange={setApiKey} />
-
-        {apiKey && (
-          <div className="flex flex-col items-center">
-            <div className="w-full max-w-2xl">
-              <FlightSearch
-                onSearch={handleFlightSearch}
-                loading={loading}
-                initialValue={flightNumber}
-              />
-
-              {error && (
-                <div className="mt-4 p-4 bg-destructive/10 text-destructive rounded-lg">
-                  {error}
+      <main className="flex flex-col items-center justify-center w-full px-2 sm:px-0">
+        <div className="w-full max-w-4xl flex flex-col items-center">
+          <div className="w-full flex flex-col items-center mt-8 mb-4">
+            <FlightSearch onSearch={handleFlightSearch} initialValue={flightNumber} />
+          </div>
+          <div className="w-full flex flex-col lg:flex-row gap-6 items-center justify-center">
+            <div className="w-full lg:w-2/3 h-[350px] sm:h-[400px] lg:h-[450px] mb-4 lg:mb-0">
+              {flightData && flightData.live ? (
+                <FlightMap flightData={flightData} />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-muted rounded-md">
+                  <span className="text-muted-foreground">No flight data</span>
                 </div>
               )}
             </div>
-
-            {flightData && (
-              <div className="w-full mt-8 grid gap-6 sm:gap-8 lg:grid-cols-[1fr_400px] max-w-7xl">
-                <FlightMap flightData={flightData} />
+            <div className="w-full lg:w-1/3">
+              {flightData ? (
                 <FlightInfo flightData={flightData} />
-              </div>
-            )}
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-muted rounded-md">
+                  <span className="text-muted-foreground">No flight selected</span>
+                </div>
+              )}
+            </div>
           </div>
-        )}
+        </div>
       </main>
       
       <Toaster />

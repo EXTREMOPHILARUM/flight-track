@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { FlightData } from '@/types/flight';
 
 // Update intervals in milliseconds
@@ -14,6 +14,7 @@ export function useFlightTracking(flightNumber: string) {
   const [flightData, setFlightData] = useState<FlightData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const workerRef = useRef<Worker | null>(null);
 
   useEffect(() => {
     if (!flightNumber) return;
@@ -24,13 +25,99 @@ export function useFlightTracking(flightNumber: string) {
       return;
     }
 
-    let intervalId: ReturnType<typeof setInterval>;
+    // Initialize worker
+    if (!workerRef.current) {
+      workerRef.current = new Worker(new URL('../workers/flightUpdateWorker.ts', import.meta.url), {
+        type: 'module'
+      });
+    }
 
-    async function fetchFlightData() {
+    const worker = workerRef.current;
+
+    // Handle worker messages
+    worker.onmessage = (e: MessageEvent) => {
+      const { type, data, error } = e.data;
+
+      switch (type) {
+        case 'UPDATE':
+          // Preserve the existing flight data but update with new live data
+          setFlightData(prevData => {
+            if (!prevData) return data;
+            return {
+              ...prevData,
+              live: data.live,
+              departure: {
+                ...prevData.departure,
+                ...data.departure
+              },
+              arrival: {
+                ...prevData.arrival,
+                ...data.arrival
+              },
+              flight_status: data.flight_status
+            };
+          });
+
+          // Cache the updated flight data
+          const cacheData: CachedFlightData = {
+            data: {
+              ...flightData!,
+              live: data.live,
+              departure: {
+                ...flightData!.departure,
+                ...data.departure
+              },
+              arrival: {
+                ...flightData!.arrival,
+                ...data.arrival
+              },
+              flight_status: data.flight_status
+            },
+            timestamp: Date.now()
+          };
+          localStorage.setItem(`flight_${flightNumber}`, JSON.stringify(cacheData));
+          break;
+
+        case 'ERROR':
+          setError(error);
+          break;
+      }
+    };
+
+    async function fetchInitialData() {
       try {
         setLoading(true);
         setError(null);
 
+        // Check cache first
+        const cachedData = localStorage.getItem(`flight_${flightNumber}`);
+        if (cachedData) {
+          const { data, timestamp }: CachedFlightData = JSON.parse(cachedData);
+          const status = data.flight_status.toLowerCase();
+          const isActive = status === 'active' || status === 'en-route';
+          const isScheduled = status === 'scheduled';
+          
+          // Calculate time since last update
+          const timeSinceLastUpdate = Date.now() - timestamp;
+          
+          // Use cache if it's within the appropriate interval
+          if ((isActive && timeSinceLastUpdate < 15 * 60 * 1000) ||
+              (isScheduled && timeSinceLastUpdate < 30 * 60 * 1000)) {
+            setFlightData(data);
+            
+            // Start background updates
+            worker.postMessage({
+              type: 'START',
+              flightNumber,
+              apiKey,
+              status: data.flight_status,
+              lastUpdated: data.live?.updated
+            });
+            return;
+          }
+        }
+
+        // If no cache or cache is stale, fetch new data
         const response = await fetch(
           `https://api.aviationstack.com/v1/flights?access_key=${apiKey}&flight_iata=${flightNumber}`
         );
@@ -56,22 +143,14 @@ export function useFlightTracking(flightNumber: string) {
           };
           localStorage.setItem(`flight_${flightNumber}`, JSON.stringify(cacheData));
 
-          // Determine update interval based on flight status
-          const status = newFlightData.flight_status.toLowerCase();
-          const isActive = status === 'active' || status === 'en-route';
-          const isScheduled = status === 'scheduled';
-          
-          // Clear existing interval
-          if (intervalId) {
-            clearInterval(intervalId);
-          }
-
-          // Set new interval based on status
-          if (isActive) {
-            intervalId = setInterval(fetchFlightData, ACTIVE_FLIGHT_INTERVAL);
-          } else if (isScheduled) {
-            intervalId = setInterval(fetchFlightData, SCHEDULED_FLIGHT_INTERVAL);
-          }
+          // Start background updates
+          worker.postMessage({
+            type: 'START',
+            flightNumber,
+            apiKey,
+            status: newFlightData.flight_status,
+            lastUpdated: newFlightData.live?.updated
+          });
         } else {
           throw new Error('Flight not found');
         }
@@ -83,39 +162,11 @@ export function useFlightTracking(flightNumber: string) {
       }
     }
 
-    // Check cache first
-    const cachedData = localStorage.getItem(`flight_${flightNumber}`);
-    if (cachedData) {
-      const { data, timestamp }: CachedFlightData = JSON.parse(cachedData);
-      const status = data.flight_status.toLowerCase();
-      const isActive = status === 'active' || status === 'en-route';
-      const isScheduled = status === 'scheduled';
-      
-      // Calculate time since last update
-      const timeSinceLastUpdate = Date.now() - timestamp;
-      
-      // Use cache if it's within the appropriate interval
-      if ((isActive && timeSinceLastUpdate < ACTIVE_FLIGHT_INTERVAL) ||
-          (isScheduled && timeSinceLastUpdate < SCHEDULED_FLIGHT_INTERVAL)) {
-        setFlightData(data);
-        
-        // Set up interval for next update
-        if (isActive) {
-          intervalId = setInterval(fetchFlightData, ACTIVE_FLIGHT_INTERVAL);
-        } else if (isScheduled) {
-          intervalId = setInterval(fetchFlightData, SCHEDULED_FLIGHT_INTERVAL);
-        }
-        return;
-      }
-    }
-
-    // If no cache or cache is stale, fetch new data
-    fetchFlightData();
+    fetchInitialData();
 
     return () => {
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
+      // Stop background updates
+      worker.postMessage({ type: 'STOP' });
     };
   }, [flightNumber]);
 
