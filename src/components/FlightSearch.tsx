@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -6,10 +6,15 @@ import { Button } from '@/components/ui/button';
 interface FlightSearchProps {
   onSearch: (flightNumber: string) => void;
   loading: boolean;
+  initialValue?: string;
 }
 
-export default function FlightSearch({ onSearch, loading }: FlightSearchProps) {
-  const [input, setInput] = useState('');
+export default function FlightSearch({ onSearch, loading, initialValue = '' }: FlightSearchProps) {
+  const [input, setInput] = useState(initialValue);
+
+  useEffect(() => {
+    setInput(initialValue);
+  }, [initialValue]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

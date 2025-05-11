@@ -18,25 +18,24 @@ export default function ApiKeyManager({ onApiKeyChange }: ApiKeyManagerProps) {
     if (savedKey) {
       setApiKey(savedKey);
       onApiKeyChange(savedKey);
+      setIsValid(true);
     }
   }, [onApiKeyChange]);
 
-  const validateApiKey = (key: string) => {
-    return key.length >= 32 && /^[a-zA-Z0-9]+$/.test(key);
-  };
-
   const handleSave = () => {
-    const valid = validateApiKey(apiKey);
-    setIsValid(valid);
-
-    if (valid) {
+    if (apiKey.length >= 32 && /^[a-zA-Z0-9]+$/.test(apiKey)) {
       localStorage.setItem('aviationstack_api_key', apiKey);
       onApiKeyChange(apiKey);
+      setIsValid(true);
       toast.success('API key saved successfully');
     } else {
       toast.error('Invalid API key format');
     }
   };
+
+  if (isValid) {
+    return null;
+  }
 
   return (
     <Card className="p-6 max-w-2xl mx-auto">
@@ -62,22 +61,6 @@ export default function ApiKeyManager({ onApiKeyChange }: ApiKeyManagerProps) {
             />
             <Button onClick={handleSave}>Save Key</Button>
           </div>
-
-          {isValid !== null && (
-            <div className="flex items-center gap-2 text-sm">
-              {isValid ? (
-                <>
-                  <CheckCircle className="h-4 w-4 text-green-500" />
-                  <span className="text-green-500">Valid API key</span>
-                </>
-              ) : (
-                <>
-                  <XCircle className="h-4 w-4 text-destructive" />
-                  <span className="text-destructive">Invalid API key format</span>
-                </>
-              )}
-            </div>
-          )}
         </div>
 
         <div className="bg-muted/50 rounded-lg p-4 space-y-3">

@@ -1,6 +1,5 @@
 import { Card } from '@/components/ui/card';
 import { FlightData } from '@/types/flight';
-import { format } from 'date-fns';
 
 interface FlightInfoProps {
   flightData: FlightData;
@@ -9,7 +8,29 @@ interface FlightInfoProps {
 export default function FlightInfo({ flightData }: FlightInfoProps) {
   const formatDateTime = (dateStr: string) => {
     try {
-      return format(new Date(dateStr), 'MMM d, HH:mm');
+      const date = new Date(dateStr);
+      return date.toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'UTC'
+      });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const formatLocalDateTime = (dateStr: string) => {
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
     } catch {
       return dateStr;
     }
@@ -17,7 +38,14 @@ export default function FlightInfo({ flightData }: FlightInfoProps) {
 
   return (
     <Card className="p-4 sm:p-6">
-      <h2 className="text-xl sm:text-2xl font-bold mb-4">Flight Details</h2>
+      <div className="flex justify-between items-start mb-4">
+        <h2 className="text-xl sm:text-2xl font-bold">Flight Details</h2>
+        {flightData.live && (
+          <p className="text-sm text-muted-foreground">
+            Last updated: {formatLocalDateTime(flightData.live.updated)}
+          </p>
+        )}
+      </div>
       
       <div className="space-y-4">
         <div>
