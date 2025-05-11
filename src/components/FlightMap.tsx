@@ -25,18 +25,19 @@ export default function FlightMap({ flightData }: FlightMapProps) {
 
   if (!flightData.live) {
     return (
-      <div className="h-[600px] rounded-lg overflow-hidden flex items-center justify-center bg-muted">
+      <div className="aspect-[4/3] sm:aspect-[16/9] rounded-lg overflow-hidden flex items-center justify-center bg-muted">
         <p className="text-muted-foreground">Live tracking data not available</p>
       </div>
     );
   }
 
   return (
-    <div className="h-[600px] rounded-lg overflow-hidden">
+    <div className="aspect-[4/3] sm:aspect-[16/9] rounded-lg overflow-hidden">
       <MapContainer
         center={[flightData.live.latitude, flightData.live.longitude]}
         zoom={8}
         style={{ height: '100%', width: '100%' }}
+        className="z-0"
       >
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

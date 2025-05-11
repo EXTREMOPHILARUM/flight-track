@@ -17,15 +17,15 @@ export default function FlightSearch({ onSearch, loading }: FlightSearchProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex gap-2">
+    <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-2">
       <Input
         type="text"
         placeholder="Enter flight number (e.g., BA123)"
         value={input}
         onChange={(e) => setInput(e.target.value)}
-        className="max-w-md"
+        className="w-full sm:max-w-md"
       />
-      <Button type="submit" disabled={loading}>
+      <Button type="submit" disabled={loading} className="w-full sm:w-auto">
         {loading ? (
           <span className="animate-spin">⏳</span>
         ) : (

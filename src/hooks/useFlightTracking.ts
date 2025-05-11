@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { FlightData } from '@/types/flight';
 
-const UPDATE_INTERVAL = 30000; // 30 seconds
+// Update intervals in milliseconds
+const ACTIVE_FLIGHT_INTERVAL = 15 * 60 * 1000; // 15 minutes
+const SCHEDULED_FLIGHT_INTERVAL = 30 * 60 * 1000; // 30 minutes
 
 export function useFlightTracking(flightNumber: string) {
   const [flightData, setFlightData] = useState<FlightData | null>(null);
@@ -39,7 +41,26 @@ export function useFlightTracking(flightNumber: string) {
         }
         
         if (data.data && data.data.length > 0) {
-          setFlightData(data.data[0]);
+          const newFlightData = data.data[0];
+          setFlightData(newFlightData);
+
+          // Determine update interval based on flight status
+          const status = newFlightData.flight_status.toLowerCase();
+          const isActive = status === 'active' || status === 'en-route';
+          const isScheduled = status === 'scheduled';
+          
+          // Clear existing interval
+          if (intervalId) {
+            clearInterval(intervalId);
+          }
+
+          // Set new interval based on status
+          if (isActive) {
+            intervalId = setInterval(fetchFlightData, ACTIVE_FLIGHT_INTERVAL);
+          } else if (isScheduled) {
+            intervalId = setInterval(fetchFlightData, SCHEDULED_FLIGHT_INTERVAL);
+          }
+          // For completed/cancelled flights, no interval is set
         } else {
           throw new Error('Flight not found');
         }
@@ -51,11 +72,13 @@ export function useFlightTracking(flightNumber: string) {
       }
     }
 
+    // Initial fetch
     fetchFlightData();
-    intervalId = setInterval(fetchFlightData, UPDATE_INTERVAL);
 
     return () => {
-      clearInterval(intervalId);
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
     };
   }, [flightNumber]);
 

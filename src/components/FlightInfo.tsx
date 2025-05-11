@@ -16,24 +16,24 @@ export default function FlightInfo({ flightData }: FlightInfoProps) {
   };
 
   return (
-    <Card className="p-6">
-      <h2 className="text-2xl font-bold mb-4">Flight Details</h2>
+    <Card className="p-4 sm:p-6">
+      <h2 className="text-xl sm:text-2xl font-bold mb-4">Flight Details</h2>
       
       <div className="space-y-4">
         <div>
           <h3 className="text-sm font-medium text-muted-foreground">Flight</h3>
-          <p className="text-lg">{flightData.airline.name} {flightData.flight.number}</p>
+          <p className="text-base sm:text-lg">{flightData.airline.name} {flightData.flight.number}</p>
         </div>
 
         <div>
           <h3 className="text-sm font-medium text-muted-foreground">Aircraft</h3>
-          <p className="text-lg">{flightData.aircraft.icao} ({flightData.aircraft.registration})</p>
+          <p className="text-base sm:text-lg">{flightData.aircraft.icao} ({flightData.aircraft.registration})</p>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <h3 className="text-sm font-medium text-muted-foreground">Departure</h3>
-            <p className="text-lg">{flightData.departure.airport} ({flightData.departure.iata})</p>
+            <p className="text-base sm:text-lg">{flightData.departure.airport} ({flightData.departure.iata})</p>
             <p className="text-sm text-muted-foreground">
               Scheduled: {formatDateTime(flightData.departure.scheduled)}
             </p>
@@ -46,7 +46,7 @@ export default function FlightInfo({ flightData }: FlightInfoProps) {
 
           <div>
             <h3 className="text-sm font-medium text-muted-foreground">Arrival</h3>
-            <p className="text-lg">{flightData.arrival.airport} ({flightData.arrival.iata})</p>
+            <p className="text-base sm:text-lg">{flightData.arrival.airport} ({flightData.arrival.iata})</p>
             <p className="text-sm text-muted-foreground">
               Scheduled: {formatDateTime(flightData.arrival.scheduled)}
             </p>
@@ -59,27 +59,27 @@ export default function FlightInfo({ flightData }: FlightInfoProps) {
         </div>
 
         {flightData.live && (
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
             <div>
               <h3 className="text-sm font-medium text-muted-foreground">Altitude</h3>
-              <p className="text-lg">{flightData.live.altitude}ft</p>
+              <p className="text-base sm:text-lg">{flightData.live.altitude}ft</p>
             </div>
 
             <div>
               <h3 className="text-sm font-medium text-muted-foreground">Speed</h3>
-              <p className="text-lg">{flightData.live.speed_horizontal}kts</p>
+              <p className="text-base sm:text-lg">{flightData.live.speed_horizontal}kts</p>
             </div>
 
             <div>
               <h3 className="text-sm font-medium text-muted-foreground">Heading</h3>
-              <p className="text-lg">{flightData.live.direction}°</p>
+              <p className="text-base sm:text-lg">{flightData.live.direction}°</p>
             </div>
           </div>
         )}
 
         <div>
           <h3 className="text-sm font-medium text-muted-foreground">Status</h3>
-          <p className="text-lg">{flightData.flight_status}</p>
+          <p className="text-base sm:text-lg">{flightData.flight_status}</p>
         </div>
       </div>
     </Card>

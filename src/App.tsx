@@ -20,14 +20,14 @@ function App() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b">
+      <header className="border-b sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center gap-4">
-          <Plane className="h-8 w-8" />
-          <h1 className="text-2xl font-bold">Flight Tracker</h1>
+          <Plane className="h-6 w-6 sm:h-8 sm:w-8" />
+          <h1 className="text-xl sm:text-2xl font-bold">Flight Tracker</h1>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 space-y-8">
+      <main className="container mx-auto px-4 py-6 sm:py-8 space-y-6 sm:space-y-8">
         <ApiKeyManager onApiKeyChange={setApiKey} />
 
         {apiKey && (
@@ -38,13 +38,13 @@ function App() {
             />
 
             {error && (
-              <div className="mt-4 p-4 bg-destructive/10 text-destructive rounded-lg">
+              <div className="p-4 bg-destructive/10 text-destructive rounded-lg">
                 {error}
               </div>
             )}
 
             {flightData && (
-              <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_400px]">
+              <div className="grid gap-6 sm:gap-8 lg:grid-cols-[1fr_400px]">
                 <FlightMap flightData={flightData} />
                 <FlightInfo flightData={flightData} />
               </div>
