@@ -10,7 +10,7 @@ interface CachedFlightData {
   timestamp: number;
 }
 
-export function useFlightTracking(flightNumber: string) {
+export function useFlightTracking(flightNumber: string, apiKey: string) {
   const [flightData, setFlightData] = useState<FlightData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,9 +19,10 @@ export function useFlightTracking(flightNumber: string) {
   useEffect(() => {
     if (!flightNumber) return;
 
-    const apiKey = localStorage.getItem('aviationstack_api_key');
     if (!apiKey) {
       setError('Please enter your AviationStack API key');
+      setFlightData(null);
+      setLoading(false);
       return;
     }
 
@@ -166,9 +167,11 @@ export function useFlightTracking(flightNumber: string) {
 
     return () => {
       // Stop background updates
-      worker.postMessage({ type: 'STOP' });
+      if (workerRef.current) {
+        workerRef.current.postMessage({ type: 'STOP' });
+      }
     };
-  }, [flightNumber]);
+  }, [flightNumber, apiKey]);
 
   return { flightData, loading, error };
 }
