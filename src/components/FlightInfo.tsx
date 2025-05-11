@@ -1,0 +1,87 @@
+import { Card } from '@/components/ui/card';
+import { FlightData } from '@/types/flight';
+import { format } from 'date-fns';
+
+interface FlightInfoProps {
+  flightData: FlightData;
+}
+
+export default function FlightInfo({ flightData }: FlightInfoProps) {
+  const formatDateTime = (dateStr: string) => {
+    try {
+      return format(new Date(dateStr), 'MMM d, HH:mm');
+    } catch {
+      return dateStr;
+    }
+  };
+
+  return (
+    <Card className="p-6">
+      <h2 className="text-2xl font-bold mb-4">Flight Details</h2>
+      
+      <div className="space-y-4">
+        <div>
+          <h3 className="text-sm font-medium text-muted-foreground">Flight</h3>
+          <p className="text-lg">{flightData.airline.name} {flightData.flight.number}</p>
+        </div>
+
+        <div>
+          <h3 className="text-sm font-medium text-muted-foreground">Aircraft</h3>
+          <p className="text-lg">{flightData.aircraft.icao} ({flightData.aircraft.registration})</p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <h3 className="text-sm font-medium text-muted-foreground">Departure</h3>
+            <p className="text-lg">{flightData.departure.airport} ({flightData.departure.iata})</p>
+            <p className="text-sm text-muted-foreground">
+              Scheduled: {formatDateTime(flightData.departure.scheduled)}
+            </p>
+            {flightData.departure.actual && (
+              <p className="text-sm text-muted-foreground">
+                Actual: {formatDateTime(flightData.departure.actual)}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <h3 className="text-sm font-medium text-muted-foreground">Arrival</h3>
+            <p className="text-lg">{flightData.arrival.airport} ({flightData.arrival.iata})</p>
+            <p className="text-sm text-muted-foreground">
+              Scheduled: {formatDateTime(flightData.arrival.scheduled)}
+            </p>
+            {flightData.arrival.actual && (
+              <p className="text-sm text-muted-foreground">
+                Actual: {formatDateTime(flightData.arrival.actual)}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {flightData.live && (
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <h3 className="text-sm font-medium text-muted-foreground">Altitude</h3>
+              <p className="text-lg">{flightData.live.altitude}ft</p>
+            </div>
+
+            <div>
+              <h3 className="text-sm font-medium text-muted-foreground">Speed</h3>
+              <p className="text-lg">{flightData.live.speed_horizontal}kts</p>
+            </div>
+
+            <div>
+              <h3 className="text-sm font-medium text-muted-foreground">Heading</h3>
+              <p className="text-lg">{flightData.live.direction}°</p>
+            </div>
+          </div>
+        )}
+
+        <div>
+          <h3 className="text-sm font-medium text-muted-foreground">Status</h3>
+          <p className="text-lg">{flightData.flight_status}</p>
+        </div>
+      </div>
+    </Card>
+  );
+}
