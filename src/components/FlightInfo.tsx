@@ -102,6 +102,16 @@ export default function FlightInfo({ flightData }: FlightInfoProps) {
               <h3 className="text-sm font-medium text-muted-foreground">Heading</h3>
               <p className="text-base sm:text-lg">{flightData.live.direction}°</p>
             </div>
+
+            <div>
+              <h3 className="text-sm font-medium text-muted-foreground">Latitude</h3>
+              <p className="text-base sm:text-lg">{flightData.live.latitude}°</p>
+            </div>
+
+            <div>
+              <h3 className="text-sm font-medium text-muted-foreground">Longitude</h3>
+              <p className="text-base sm:text-lg">{flightData.live.longitude}°</p>
+            </div>
           </div>
         )}
 
