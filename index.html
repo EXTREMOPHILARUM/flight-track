@@ -2,30 +2,67 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/icons/icon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#000000" />
-    <link rel="manifest" href="/manifest.json" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Flight Tracker</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 </head>
 
 <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
-                    .then(registration => {
-                        console.log('ServiceWorker registration successful');
-                    })
-                    .catch(err => {
-                        console.log('ServiceWorker registration failed: ', err);
-                    });
-            });
-        }
-    </script>
+    <div class="container">
+        <h1>Flight Tracker</h1>
+        <p>Enter departure and arrival airport ICAOs, and a date range (max 7 days) to find flights.<br> Note: Data is available for previous days only.</p>
+
+        <div class="input-grid">
+            <div>
+                <label for="departureAirportInput">Departure Airport (ICAO):</label>
+                <input type="text" id="departureAirportInput" placeholder="e.g., EDDF">
+            </div>
+            <div>
+                <label for="arrivalAirportInput">Arrival Airport (ICAO):</label>
+                <input type="text" id="arrivalAirportInput" placeholder="e.g., KJFK">
+            </div>
+            <div>
+                <label for="beginDateInput">Begin Date:</label>
+                <input type="date" id="beginDateInput">
+            </div>
+            <div>
+                <label for="endDateInput">End Date:</label>
+                <input type="date" id="endDateInput">
+            </div>
+        </div>
+        <button id="fetchFlightsButton">Fetch Flights</button>
+
+        <div id="messageArea"></div>
+
+        <div id="foundFlightsArea">
+            <h2>Matching Flights</h2>
+            <ul id="foundFlightsList">
+                <!-- Matching flights will be listed here -->
+            </ul>
+        </div>
+
+        <div id="flightTrackMapContainer" style="height: 400px; margin-top: 20px; display:none;"></div>
+
+        <div id="flightInfo" style="display:none;">
+            <h2>Flight Track Details</h2>
+            <p><strong>ICAO24:</strong> <span id="infoIcao24">-</span></p>
+            <p><strong>Callsign:</strong> <span id="infoCallsign">-</span></p>
+            <p><strong>Start Time:</strong> <span id="infoStartTime">-</span></p>
+            <p><strong>End Time:</strong> <span id="infoEndTime">-</span></p>
+        </div>
+
+        <div id="waypointsArea" style="display:none;">
+            <h2>Waypoints</h2>
+            <ul id="waypointsList">
+                <!-- Waypoints will be listed here -->
+            </ul>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="script.js"></script>
 </body>
 
 </html>
