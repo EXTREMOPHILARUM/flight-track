@@ -206,24 +206,75 @@ document.addEventListener('DOMContentLoaded', () => {
         displayMessage('Fetching flights... Note: Data is for previous days.', 'info');
 
         try {
-            const apiUrl = `https://opensky-network.org/api/flights/departure?airport=${departureAirport}&begin=${beginTimestamp}&end=${endTimestamp}`;
-            const response = await fetch(apiUrl);
+            // Fetch departure flights
+            const departureApiUrl = `https://opensky-network.org/api/flights/departure?airport=${departureAirport}&begin=${beginTimestamp}&end=${endTimestamp}`;
+            const departureResponse = await fetch(departureApiUrl);
 
-            if (response.status === 404) {
+            if (departureResponse.status === 404) {
                 displayMessage(`No departure flights found for ${departureAirport} in the given period.`, 'info');
                 return;
             }
-            if (!response.ok) {
-                throw new Error(`Error fetching flights: ${response.status} ${response.statusText}`);
+            if (!departureResponse.ok) {
+                throw new Error(`Error fetching departure flights: ${departureResponse.status} ${departureResponse.statusText}`);
             }
 
-            const flights = await response.json();
-            if (!flights || flights.length === 0) {
+            const departureFlights = await departureResponse.json();
+            if (!departureFlights || departureFlights.length === 0) {
                 displayMessage(`No departure flights found for ${departureAirport} in the given period.`, 'info');
                 return;
             }
 
-            const matchingFlights = flights.filter(flight => flight.estArrivalAirport === arrivalAirport);
+            // Fetch arrival flights
+            const arrivalApiUrl = `https://opensky-network.org/api/flights/arrival?airport=${arrivalAirport}&begin=${beginTimestamp}&end=${endTimestamp}`;
+            const arrivalResponse = await fetch(arrivalApiUrl);
+
+            if (arrivalResponse.status === 404) {
+                displayMessage(`No arrival flights found for ${arrivalAirport} in the given period.`, 'info');
+                return;
+            }
+            if (!arrivalResponse.ok) {
+                throw new Error(`Error fetching arrival flights: ${arrivalResponse.status} ${arrivalResponse.statusText}`);
+            }
+
+            const arrivalFlights = await arrivalResponse.json();
+            if (!arrivalFlights || arrivalFlights.length === 0) {
+                displayMessage(`No arrival flights found for ${arrivalAirport} in the given period.`, 'info');
+                return;
+            }
+
+            const validatedMatchingFlights = [];
+            for (const depFlight of departureFlights) {
+                // If the departure record has a specific estimated arrival airport,
+                // and it's NOT the one the user is searching for, skip this departure record.
+                // This prevents linking a flight clearly going to VOBL (for example)
+                // with a search for VABB, just because the same plane later landed at VABB.
+                if (depFlight.estArrivalAirport && depFlight.estArrivalAirport !== arrivalAirport) {
+                    continue;
+                }
+
+                // Proceed to find a matching arrival for departures that are either:
+                // 1. Estimated to arrive at the target airport.
+                // 2. Have no estimated arrival airport in the departure record (null).
+                const matchingArrival = arrivalFlights.find(arrFlight =>
+                    arrFlight.icao24 === depFlight.icao24 &&
+                    arrFlight.estArrivalAirport === arrivalAirport && // Confirm arrival record is for the target
+                    arrFlight.lastSeen > depFlight.firstSeen // Ensure arrival is after departure
+                );
+
+                if (matchingArrival) {
+                    validatedMatchingFlights.push({
+                        icao24: depFlight.icao24,
+                        callsign: depFlight.callsign,
+                        firstSeen: depFlight.firstSeen,
+                        estDepartureAirport: depFlight.estDepartureAirport,
+                        lastSeen: matchingArrival.lastSeen, // Use arrival time from the matched arrival record
+                        estArrivalAirport: matchingArrival.estArrivalAirport, // Use arrival airport from matched (target) arrival record
+                    });
+                }
+            }
+
+            // Update the variable name for consistency downstream
+            const matchingFlights = validatedMatchingFlights;
 
             if (matchingFlights.length === 0) {
                 displayMessage(`No flights found departing from ${departureAirport} and arriving at ${arrivalAirport} in the selected period.`, 'info');
@@ -232,6 +283,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             displayMessage(`Found ${matchingFlights.length} flight(s). Select one to view track.`, 'success');
             foundFlightsList.innerHTML = ''; // Clear previous list
+
+            // Update the heading to show the route
+            document.querySelector('#foundFlightsArea h2').textContent = `Flights from ${departureAirport} to ${arrivalAirport}`;
 
             matchingFlights.forEach(flight => {
                 const li = document.createElement('li');
