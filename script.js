@@ -242,46 +242,87 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            const validatedMatchingFlights = [];
+            const candidateFlights = [];
+            
+            // First pass: collect all potential matches
             for (const depFlight of departureFlights) {
-                // If the departure record has a specific estimated arrival airport,
-                // and it's NOT the one the user is searching for, skip this departure record.
-                // This prevents linking a flight clearly going to VOBL (for example)
-                // with a search for VABB, just because the same plane later landed at VABB.
+                // Skip if departure airport doesn't match our search departure airport  
+                if (depFlight.estDepartureAirport && depFlight.estDepartureAirport !== departureAirport) {
+                    continue;
+                }
+                
+                // Skip if departure has a specific arrival airport that doesn't match our search
                 if (depFlight.estArrivalAirport && depFlight.estArrivalAirport !== arrivalAirport) {
                     continue;
                 }
 
-                // Proceed to find a matching arrival for departures that are either:
-                // 1. Estimated to arrive at the target airport.
-                // 2. Have no estimated arrival airport in the departure record (null).
-                const matchingArrival = arrivalFlights.find(arrFlight =>
-                    arrFlight.icao24 === depFlight.icao24 &&
-                    arrFlight.estArrivalAirport === arrivalAirport && // Confirm arrival record is for the target
-                    arrFlight.lastSeen > depFlight.firstSeen // Ensure arrival is after departure
-                );
+                // Find matching arrival with basic validation
+                const matchingArrival = arrivalFlights.find(arrFlight => {
+                    // Basic matching criteria
+                    if (arrFlight.icao24 !== depFlight.icao24 || arrFlight.lastSeen <= depFlight.firstSeen) {
+                        return false;
+                    }
+                    
+                    // Calculate flight duration in hours
+                    const flightDurationHours = (arrFlight.lastSeen - depFlight.firstSeen) / 3600;
+                    
+                    // Filter out obviously unrealistic durations
+                    if (flightDurationHours > 24 || flightDurationHours < 0.5) {
+                        return false;
+                    }
+                    
+                    // Check airport codes if available, otherwise allow for missing data
+                    const depAirportMatch = !arrFlight.estDepartureAirport || 
+                                           arrFlight.estDepartureAirport === departureAirport;
+                    const arrAirportMatch = !arrFlight.estArrivalAirport || 
+                                           arrFlight.estArrivalAirport === arrivalAirport;
+                    
+                    return depAirportMatch && arrAirportMatch;
+                });
 
                 if (matchingArrival) {
-                    validatedMatchingFlights.push({
+                    const flightDuration = matchingArrival.lastSeen - depFlight.firstSeen;
+                    
+                    candidateFlights.push({
                         icao24: depFlight.icao24,
                         callsign: depFlight.callsign,
                         firstSeen: depFlight.firstSeen,
-                        estDepartureAirport: depFlight.estDepartureAirport,
-                        lastSeen: matchingArrival.lastSeen, // Use arrival time from the matched arrival record
-                        estArrivalAirport: matchingArrival.estArrivalAirport, // Use arrival airport from matched (target) arrival record
+                        estDepartureAirport: depFlight.estDepartureAirport || departureAirport,
+                        lastSeen: matchingArrival.lastSeen,
+                        estArrivalAirport: matchingArrival.estArrivalAirport || arrivalAirport,
+                        flightDuration: flightDuration,
+                        durationHours: flightDuration / 3600
                     });
                 }
             }
 
-            // Update the variable name for consistency downstream
-            const matchingFlights = validatedMatchingFlights;
+            // Second pass: filter by shortest duration + buffer
+            let matchingFlights = [];
+            if (candidateFlights.length > 0) {
+                // Find the shortest flight duration
+                const shortestDuration = Math.min(...candidateFlights.map(f => f.durationHours));
+                const bufferHours = Math.max(2, shortestDuration * 0.5); // 2 hour buffer or 50% of shortest, whichever is larger
+                const maxAllowedDuration = shortestDuration + bufferHours;
+                
+                // Filter flights within reasonable duration
+                matchingFlights = candidateFlights.filter(f => f.durationHours <= maxAllowedDuration);
+                
+                console.log(`Found ${candidateFlights.length} candidates, ${matchingFlights.length} realistic flights`);
+                console.log(`Shortest: ${shortestDuration.toFixed(1)}h, Buffer: ${bufferHours.toFixed(1)}h, Max: ${maxAllowedDuration.toFixed(1)}h`);
+            }
 
             if (matchingFlights.length === 0) {
-                displayMessage(`No flights found departing from ${departureAirport} and arriving at ${arrivalAirport} in the selected period.`, 'info');
+                const candidateMessage = candidateFlights.length > 0 
+                    ? ` (${candidateFlights.length} candidate flights found but filtered out for unrealistic durations)`
+                    : '';
+                displayMessage(`No realistic flights found departing from ${departureAirport} and arriving at ${arrivalAirport} in the selected period${candidateMessage}.`, 'info');
                 return;
             }
 
-            displayMessage(`Found ${matchingFlights.length} flight(s). Select one to view track.`, 'success');
+            const filterMessage = candidateFlights.length > matchingFlights.length 
+                ? ` (filtered from ${candidateFlights.length} candidates)`
+                : '';
+            displayMessage(`Found ${matchingFlights.length} realistic flight(s)${filterMessage}. Select one to view track.`, 'success');
             foundFlightsList.innerHTML = ''; // Clear previous list
 
             // Update the heading to show the route
