@@ -1,0 +1,128 @@
+{
+  "metadata": {
+    "name": "Flight Tracker Data Processing",
+    "language_info": {
+      "name": "JavaScript",
+      "version": "8.0"
+    }
+  },
+  "jsnbversion": "v0.1",
+  "cells": [
+    {
+      "code": "<div style=\"text-align:center;background-color:#2E86AB;color:#EEE;margin:-10px;margin-left:-20px;margin-right:-20px;padding:20px;\">\n<h1 style=\"color:#EEE\">Flight Tracker Data Processing</h1>\n<p style=\"color:#EEE\">Interactive notebook for tracking flights between airports using OpenSky Network API</p>\n</div>",
+      "status": "",
+      "output": "",
+      "type": "html"
+    },
+    {
+      "code": "## About This Notebook\n\nThis notebook demonstrates how to:\n- Load airport data from CSV\n- Search for flights between airports\n- Match departure and arrival records\n- Fetch detailed flight track data\n- Analyze flight patterns\n\n**Note:** The OpenSky Network API provides historical flight data (previous days only).",
+      "status": "",
+      "output": "",
+      "type": "html"
+    },
+    {
+      "code": "### Step 1: Configuration and Helper Functions",
+      "status": "",
+      "output": "",
+      "type": "html"
+    },
+    {
+      "code": "// Configuration - store in window for access across cells\nwindow.AIRPORTS_CSV_URL = 'https://raw.githubusercontent.com/ip2location/ip2location-iata-icao/refs/heads/master/iata-icao.csv';\n\n// Helper function to parse CSV - store in window\nwindow.parseAirportCsv = function(csvText) {\n    const lines = csvText.split('\\n');\n    const airports = [];\n    \n    for (let i = 1; i < lines.length; i++) {\n        const line = lines[i].trim();\n        if (!line) continue;\n\n        const parts = [];\n        let currentPart = '';\n        let inQuotes = false;\n        \n        for (let char of line) {\n            if (char === '\"') {\n                inQuotes = !inQuotes;\n            } else if (char === ',' && !inQuotes) {\n                parts.push(currentPart);\n                currentPart = '';\n            } else {\n                currentPart += char;\n            }\n        }\n        parts.push(currentPart);\n\n        if (parts.length >= 5) {\n            const countryCode = parts[0].trim();\n            const regionName = parts[1].trim();\n            const icao = parts[3].trim();\n            const airportName = parts[4].trim();\n            \n            if (icao && airportName && icao.toLowerCase() !== 'icao') {\n                airports.push({ icao, name: airportName, country: countryCode, region: regionName });\n            }\n        }\n    }\n    return airports;\n}\n\nscrib.show(\"✅ Helper functions loaded successfully\")",
+      "status": "[1]<br><span style=\"font-size:8px\">0ms<span></span></span>",
+      "output": "",
+      "type": "code"
+    },
+    {
+      "code": "### Step 2: Load Airport Data",
+      "status": "",
+      "output": "",
+      "type": "html"
+    },
+    {
+      "code": "// Fetch and parse airport data - store in window\nwindow.airports = [];\n\ntry {\n    scrib.show(\"🔄 Loading airport data...\")\n    const response = await fetch(window.AIRPORTS_CSV_URL);\n    if (!response.ok) {\n        throw new Error(`Failed to fetch airport data: ${response.status}`);\n    }\n    \n    const csvText = await response.text();\n    window.airports = window.parseAirportCsv(csvText);\n    \n    scrib.show(`✅ Loaded ${window.airports.length} airports`);\n    \n    // Show sample airports\n    scrib.show(\"\\n📍 Sample airports:\");\n    const sampleAirports = window.airports.slice(0, 5).map(a => \n        `${a.icao} - ${a.name} (${a.region}, ${a.country})`\n    );\n    sampleAirports.forEach(a => scrib.show(`   • ${a}`));\n    \n} catch (error) {\n    scrib.show(`❌ Error loading airports: ${error.message}`);\n}",
+      "status": "[2]<br><span style=\"font-size:8px\">0ms<span></span></span>",
+      "output": "",
+      "type": "code"
+    },
+    {
+      "code": "### Step 3: Set Flight Search Parameters",
+      "status": "",
+      "output": "",
+      "type": "html"
+    },
+    {
+      "code": "// Set search parameters - adjust dates to recent past\nwindow.searchParams = {\n    departureAirport: 'EDDF',  // Frankfurt Airport\n    arrivalAirport: 'KJFK',    // JFK Airport  \n    beginDate: '2025-01-10',   // Adjust to a recent past date\n    endDate: '2025-01-11'      // Maximum 7 days range\n};\n\n// Convert dates to timestamps\nwindow.beginTimestamp = Math.floor(new Date(window.searchParams.beginDate + \"T00:00:00Z\").getTime() / 1000);\nwindow.endTimestamp = Math.floor(new Date(window.searchParams.endDate + \"T23:59:59Z\").getTime() / 1000);\n\n// Validate date range\nconst sevenDaysInSeconds = 7 * 24 * 60 * 60;\nconst dateRangeDays = (window.endTimestamp - window.beginTimestamp) / (24 * 60 * 60);\n\nscrib.show(\"🔍 Search Parameters:\");\nscrib.show(`   • Route: ${window.searchParams.departureAirport} → ${window.searchParams.arrivalAirport}`);\nscrib.show(`   • Date range: ${window.searchParams.beginDate} to ${window.searchParams.endDate} (${dateRangeDays} days)`);\nscrib.show(`   • Timestamps: ${window.beginTimestamp} to ${window.endTimestamp}`);\n\nif ((window.endTimestamp - window.beginTimestamp) > sevenDaysInSeconds) {\n    scrib.show('❌ Date range exceeds 7 days!');\n} else {\n    scrib.show('✅ Date range is valid');\n}",
+      "status": "[3]<br><span style=\"font-size:8px\">0ms<span></span></span>",
+      "output": "",
+      "type": "code"
+    },
+    {
+      "code": "### Step 4: Fetch Departure Flights",
+      "status": "",
+      "output": "",
+      "type": "html"
+    },
+    {
+      "code": "// Fetch departure flights - store in window\nwindow.departureFlights = [];\n\nconst departureApiUrl = `https://opensky-network.org/api/flights/departure?airport=${window.searchParams.departureAirport}&begin=${window.beginTimestamp}&end=${window.endTimestamp}`;\n\ntry {\n    scrib.show(`\\n🛫 Fetching departure flights from ${window.searchParams.departureAirport}...`);\n    const response = await fetch(departureApiUrl);\n    \n    if (response.status === 404) {\n        scrib.show(`⚠️ No departure flights found for ${window.searchParams.departureAirport}`);\n    } else if (!response.ok) {\n        throw new Error(`Error: ${response.status} ${response.statusText}`);\n    } else {\n        window.departureFlights = await response.json();\n        scrib.show(`✅ Found ${window.departureFlights.length} departure flights`);\n        \n        // Show sample departure flights\n        if (window.departureFlights.length > 0) {\n            scrib.show(\"\\n📋 Sample departures:\");\n            window.departureFlights.slice(0, 3).forEach((f, i) => {\n                const depTime = new Date(f.firstSeen * 1000).toLocaleString();\n                scrib.show(`   ${i+1}. ${f.callsign || 'N/A'} (${f.icao24})`);\n                scrib.show(`      Departed: ${depTime}`);\n                scrib.show(`      Est. Arrival: ${f.estArrivalAirport || 'Unknown'}`);\n            });\n        }\n    }\n} catch (error) {\n    scrib.show(`❌ Error fetching departures: ${error.message}`);\n}",
+      "status": "[4]<br><span style=\"font-size:8px\">0ms<span></span></span>",
+      "output": "",
+      "type": "code"
+    },
+    {
+      "code": "### Step 5: Fetch Arrival Flights",
+      "status": "",
+      "output": "",
+      "type": "html"
+    },
+    {
+      "code": "// Fetch arrival flights - store in window\nwindow.arrivalFlights = [];\n\nconst arrivalApiUrl = `https://opensky-network.org/api/flights/arrival?airport=${window.searchParams.arrivalAirport}&begin=${window.beginTimestamp}&end=${window.endTimestamp}`;\n\ntry {\n    scrib.show(`\\n🛬 Fetching arrival flights at ${window.searchParams.arrivalAirport}...`);\n    const response = await fetch(arrivalApiUrl);\n    \n    if (response.status === 404) {\n        scrib.show(`⚠️ No arrival flights found for ${window.searchParams.arrivalAirport}`);\n    } else if (!response.ok) {\n        throw new Error(`Error: ${response.status} ${response.statusText}`);\n    } else {\n        window.arrivalFlights = await response.json();\n        scrib.show(`✅ Found ${window.arrivalFlights.length} arrival flights`);\n        \n        // Show sample arrival flights\n        if (window.arrivalFlights.length > 0) {\n            scrib.show(\"\\n📋 Sample arrivals:\");\n            window.arrivalFlights.slice(0, 3).forEach((f, i) => {\n                const arrTime = new Date(f.lastSeen * 1000).toLocaleString();\n                scrib.show(`   ${i+1}. ${f.callsign || 'N/A'} (${f.icao24})`);\n                scrib.show(`      Arrived: ${arrTime}`);\n                scrib.show(`      From: ${f.estDepartureAirport || 'Unknown'}`);\n            });\n        }\n    }\n} catch (error) {\n    scrib.show(`❌ Error fetching arrivals: ${error.message}`);\n}",
+      "status": "[5]<br><span style=\"font-size:8px\">0ms<span></span></span>",
+      "output": "",
+      "type": "code"
+    },
+    {
+      "code": "### Step 6: Match Flights Between Departure and Arrival",
+      "status": "",
+      "output": "",
+      "type": "html"
+    },
+    {
+      "code": "// Match flights that departed from source and arrived at destination\nwindow.matchingFlights = [];\n\nscrib.show(\"\\n🔗 Matching departure and arrival records...\");\n\nfor (const depFlight of window.departureFlights) {\n    // Skip if departure has a specific arrival airport that doesn't match our search\n    if (depFlight.estArrivalAirport && depFlight.estArrivalAirport !== window.searchParams.arrivalAirport) {\n        continue;\n    }\n\n    // Find matching arrival\n    const matchingArrival = window.arrivalFlights.find(arrFlight =>\n        arrFlight.icao24 === depFlight.icao24 &&\n        arrFlight.estArrivalAirport === window.searchParams.arrivalAirport &&\n        arrFlight.lastSeen > depFlight.firstSeen\n    );\n\n    if (matchingArrival) {\n        window.matchingFlights.push({\n            icao24: depFlight.icao24,\n            callsign: depFlight.callsign || 'N/A',\n            departureTime: depFlight.firstSeen,\n            departureAirport: depFlight.estDepartureAirport,\n            arrivalTime: matchingArrival.lastSeen,\n            arrivalAirport: matchingArrival.estArrivalAirport,\n            flightDuration: matchingArrival.lastSeen - depFlight.firstSeen\n        });\n    }\n}\n\nscrib.show(`\\n✈️ Found ${window.matchingFlights.length} matching flights`);\n\n// Display matching flights\nif (window.matchingFlights.length > 0) {\n    scrib.show(\"\\n📊 Flight Details:\");\n    window.matchingFlights.forEach((f, i) => {\n        const depTime = new Date(f.departureTime * 1000).toLocaleString();\n        const arrTime = new Date(f.arrivalTime * 1000).toLocaleString();\n        const durationHours = Math.floor(f.flightDuration / 3600);\n        const durationMinutes = Math.floor((f.flightDuration % 3600) / 60);\n        \n        scrib.show(`\\n${i+1}. Flight ${f.callsign} (${f.icao24})`);\n        scrib.show(`   Departure: ${f.departureAirport} at ${depTime}`);\n        scrib.show(`   Arrival: ${f.arrivalAirport} at ${arrTime}`);\n        scrib.show(`   Duration: ${durationHours}h ${durationMinutes}m`);\n    });\n} else {\n    scrib.show(\"No direct flights found between these airports in the selected period.\");\n}",
+      "status": "[6]<br><span style=\"font-size:8px\">0ms<span></span></span>",
+      "output": "",
+      "type": "code"
+    },
+    {
+      "code": "### Step 7: Fetch Flight Track Data (Optional)",
+      "status": "",
+      "output": "",
+      "type": "html"
+    },
+    {
+      "code": "// Function to fetch track data for a specific flight\nwindow.fetchFlightTrack = async function(icao24, flightTime) {\n    const trackApiUrl = `https://opensky-network.org/api/tracks/all?icao24=${icao24}&time=${flightTime}`;\n    \n    try {\n        const response = await fetch(trackApiUrl);\n        \n        if (response.status === 404) {\n            return { error: 'No track data found (might be too old or unavailable)' };\n        }\n        \n        if (!response.ok) {\n            throw new Error(`Error: ${response.status} ${response.statusText}`);\n        }\n        \n        const trackData = await response.json();\n        \n        if (!trackData || !trackData.path || trackData.path.length === 0) {\n            return { error: 'No track path data available' };\n        }\n        \n        return trackData;\n    } catch (error) {\n        return { error: error.message };\n    }\n}\n\n// Fetch track for the first matching flight (if any)\nif (window.matchingFlights && window.matchingFlights.length > 0) {\n    const firstFlight = window.matchingFlights[0];\n    scrib.show(`\\n🛤️ Fetching track data for flight ${firstFlight.callsign}...`);\n    \n    const trackData = await window.fetchFlightTrack(firstFlight.icao24, firstFlight.departureTime);\n    \n    if (trackData.error) {\n        scrib.show(`⚠️ Track error: ${trackData.error}`);\n    } else {\n        window.trackData = trackData; // Store for later use\n        scrib.show(`✅ Track data loaded successfully!`);\n        scrib.show(`   • Flight: ${trackData.callsign || firstFlight.callsign}`);\n        scrib.show(`   • ICAO24: ${trackData.icao24}`);\n        scrib.show(`   • Waypoints: ${trackData.path.length}`);\n        \n        // Show first few waypoints\n        scrib.show(\"\\n📍 First 5 waypoints:\");\n        trackData.path.slice(0, 5).forEach((wp, i) => {\n            const time = new Date(wp[0] * 1000).toLocaleTimeString();\n            const lat = wp[1]?.toFixed(4) || 'N/A';\n            const lon = wp[2]?.toFixed(4) || 'N/A';\n            const alt = wp[3] ? `${wp[3]}m` : 'N/A';\n            scrib.show(`   ${i+1}. ${time} - Lat: ${lat}, Lon: ${lon}, Alt: ${alt}`);\n        });\n    }\n} else {\n    scrib.show(\"\\n⚠️ No matching flights to fetch track data for.\");\n}",
+      "status": "[7]<br><span style=\"font-size:8px\">0ms<span></span></span>",
+      "output": "",
+      "type": "code"
+    },
+    {
+      "code": "### Step 8: Data Analysis and Visualization",
+      "status": "",
+      "output": "",
+      "type": "html"
+    },
+    {
+      "code": "// Analyze flight data and create visualizations\nif (window.matchingFlights && window.matchingFlights.length > 0) {\n    // Calculate statistics\n    const durations = window.matchingFlights.map(f => f.flightDuration / 3600); // in hours\n    const avgDuration = durations.reduce((a, b) => a + b, 0) / durations.length;\n    const minDuration = Math.min(...durations);\n    const maxDuration = Math.max(...durations);\n    \n    scrib.show(\"\\n📊 Flight Statistics:\");\n    scrib.show(`   • Total flights: ${window.matchingFlights.length}`);\n    scrib.show(`   • Route: ${window.searchParams.departureAirport} → ${window.searchParams.arrivalAirport}`);\n    scrib.show(`   • Average duration: ${avgDuration.toFixed(1)} hours`);\n    scrib.show(`   • Shortest flight: ${minDuration.toFixed(1)} hours`);\n    scrib.show(`   • Longest flight: ${maxDuration.toFixed(1)} hours`);\n    \n    // Callsign analysis\n    const callsigns = window.matchingFlights.map(f => f.callsign).filter(c => c !== 'N/A');\n    const uniqueCallsigns = [...new Set(callsigns)];\n    \n    scrib.show(`\\n✈️ Airlines/Callsigns: ${uniqueCallsigns.join(', ')}`);\n    \n    // Create a simple bar chart of flight durations\n    if (durations.length > 1) {\n        scrib.show(\"\\n📈 Flight Duration Distribution:\");\n        const maxBarLength = 30;\n        window.matchingFlights.forEach((f, i) => {\n            const duration = f.flightDuration / 3600;\n            const barLength = Math.round((duration / maxDuration) * maxBarLength);\n            const bar = '█'.repeat(barLength);\n            scrib.show(`   ${f.callsign}: ${bar} ${duration.toFixed(1)}h`);\n        });\n    }\n} else {\n    scrib.show(\"\\n📊 No flight data available for analysis.\");\n}",
+      "status": "[8]<br><span style=\"font-size:8px\">0ms<span></span></span>",
+      "output": "",
+      "type": "code"
+    },
+    {
+      "code": "## Summary\n\nThis notebook demonstrated the complete flight tracking data processing workflow:\n\n1. **Airport Data**: Loaded ${window.airports ? window.airports.length : 0} airports from CSV\n2. **Flight Search**: Queried OpenSky Network API for historical data\n3. **Data Matching**: Matched departure and arrival records\n4. **Track Retrieval**: Fetched detailed waypoint data for flights\n5. **Analysis**: Calculated statistics and visualized flight patterns\n\n### Key Insights:\n- OpenSky Network provides free access to historical flight data\n- Data is available for previous days only (not real-time)\n- Track data may be limited or unavailable for older flights\n- The API allows analysis of flight patterns and routes\n\n### Next Steps:\n- Try different airport pairs\n- Analyze seasonal flight patterns\n- Compare flight durations across different times\n- Visualize flight paths on a map\n\n### Variables Available:\nAll data is stored in window object for access across cells:\n- `window.airports` - Array of all airports\n- `window.searchParams` - Search parameters\n- `window.departureFlights` - Departure flight data\n- `window.arrivalFlights` - Arrival flight data  \n- `window.matchingFlights` - Matched flights\n- `window.trackData` - Track data for first flight",
+      "status": "",
+      "output": "",
+      "type": "html"
+    }
+  ],
+  "source": "https://github.com/extremo/flighttrack",
+  "run_on_load": false
+}
